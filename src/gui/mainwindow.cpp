@@ -1131,17 +1131,26 @@ void MainWindow::on_actionStatistics_triggered()
 void MainWindow::showEvent(QShowEvent *e)
 {
     qDebug("** Show Event **");
-
-    if (currentTabWidget() == m_transferListWidget)
-        m_propertiesWidget->loadDynamicData();
-
     e->accept();
 
-    // Make sure the window is initially centered
-    if (!m_posInitialized)
+    if (isVisible())
     {
-        move(Utils::Gui::screenCenter(this));
-        m_posInitialized = true;
+        // preparations before showing the window
+
+        if (currentTabWidget() == m_transferListWidget)
+            m_propertiesWidget->loadDynamicData();
+
+        // Make sure the window is initially centered
+        if (!m_posInitialized)
+        {
+            move(Utils::Gui::screenCenter(this));
+            m_posInitialized = true;
+        }
+    }
+    else
+    {
+        // to avoid blank screen when restoring from tray icon
+        show();
     }
 }
 
@@ -1154,7 +1163,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         if (mimeData->hasText())
         {
             const bool useTorrentAdditionDialog {AddNewTorrentDialog::isEnabled()};
-            const QStringList lines {mimeData->text().split('\n', QString::SkipEmptyParts)};
+            const QStringList lines {mimeData->text().split('\n', Qt::SkipEmptyParts)};
 
             for (QString line : lines)
             {
@@ -2175,8 +2184,9 @@ void MainWindow::pythonDownloadFinished(const Net::DownloadResult &result)
     QProcess installer;
     qDebug("Launching Python installer in passive mode...");
 
-    QFile::rename(result.filePath, result.filePath + ".exe");
-    installer.start('"' + Utils::Fs::toNativePath(result.filePath) + ".exe\" /passive");
+    const QString exePath = result.filePath + QLatin1String(".exe");
+    QFile::rename(result.filePath, exePath);
+    installer.start(Utils::Fs::toNativePath(exePath), {"/passive"});
 
     // Wait for setup to complete
     installer.waitForFinished(10 * 60 * 1000);
@@ -2186,7 +2196,7 @@ void MainWindow::pythonDownloadFinished(const Net::DownloadResult &result)
     qDebug("Setup should be complete!");
 
     // Delete temp file
-    Utils::Fs::forceRemove(result.filePath + ".exe");
+    Utils::Fs::forceRemove(exePath);
 
     // Reload search engine
     if (Utils::ForeignApps::pythonInfo().isSupportedVersion())

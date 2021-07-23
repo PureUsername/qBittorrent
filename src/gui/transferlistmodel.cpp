@@ -75,6 +75,7 @@ namespace
             {BitTorrent::TorrentState::Downloading, QLatin1String("TransferList.Downloading")},
             {BitTorrent::TorrentState::StalledDownloading, QLatin1String("TransferList.StalledDownloading")},
             {BitTorrent::TorrentState::DownloadingMetadata, QLatin1String("TransferList.DownloadingMetadata")},
+            {BitTorrent::TorrentState::ForcedDownloadingMetadata, QLatin1String("TransferList.ForcedDownloadingMetadata")},
             {BitTorrent::TorrentState::ForcedDownloading, QLatin1String("TransferList.ForcedDownloading")},
             {BitTorrent::TorrentState::Uploading, QLatin1String("TransferList.Uploading")},
             {BitTorrent::TorrentState::StalledUploading, QLatin1String("TransferList.StalledUploading")},
@@ -111,6 +112,7 @@ TransferListModel::TransferListModel(QObject *parent)
           {BitTorrent::TorrentState::Downloading, tr("Downloading")},
           {BitTorrent::TorrentState::StalledDownloading, tr("Stalled", "Torrent is waiting for download to begin")},
           {BitTorrent::TorrentState::DownloadingMetadata, tr("Downloading metadata", "Used when loading a magnet link")},
+          {BitTorrent::TorrentState::ForcedDownloadingMetadata, tr("[F] Downloading metadata", "Used when forced to load a magnet link. You probably shouldn't translate the F.")},
           {BitTorrent::TorrentState::ForcedDownloading, tr("[F] Downloading", "Used when the torrent is forced started. You probably shouldn't translate the F.")},
           {BitTorrent::TorrentState::Uploading, tr("Seeding", "Torrent is complete and in upload-only mode")},
           {BitTorrent::TorrentState::StalledUploading, tr("Seeding", "Torrent is complete and in upload-only mode")},
@@ -323,13 +325,6 @@ QString TransferListModel::displayValue(const BitTorrent::Torrent *torrent, cons
                      , Utils::Misc::userFriendlyDuration(seedingTime));
     };
 
-    const auto tagsString = [](const QSet<QString> &tags) -> QString
-    {
-        QStringList tagsList = tags.values();
-        tagsList.sort();
-        return tagsList.join(", ");
-    };
-
     const auto progressString = [](const qreal progress) -> QString
     {
         return (progress >= 1)
@@ -373,7 +368,7 @@ QString TransferListModel::displayValue(const BitTorrent::Torrent *torrent, cons
     case TR_CATEGORY:
         return torrent->category();
     case TR_TAGS:
-        return tagsString(torrent->tags());
+        return torrent->tags().join(QLatin1String(", "));
     case TR_ADD_DATE:
         return QLocale().toString(torrent->addedTime().toLocalTime(), QLocale::ShortFormat);
     case TR_SEED_DATE:
@@ -442,7 +437,7 @@ QVariant TransferListModel::internalValue(const BitTorrent::Torrent *torrent, co
     case TR_CATEGORY:
         return torrent->category();
     case TR_TAGS:
-        return QStringList {torrent->tags().values()};
+        return QVariant::fromValue(torrent->tags());
     case TR_ADD_DATE:
         return torrent->addedTime();
     case TR_SEED_DATE:
@@ -671,6 +666,7 @@ QIcon getIconByState(const BitTorrent::TorrentState state)
     case BitTorrent::TorrentState::Downloading:
     case BitTorrent::TorrentState::ForcedDownloading:
     case BitTorrent::TorrentState::DownloadingMetadata:
+    case BitTorrent::TorrentState::ForcedDownloadingMetadata:
         return getDownloadingIcon();
     case BitTorrent::TorrentState::StalledDownloading:
         return getStalledDownloadingIcon();
@@ -711,6 +707,7 @@ QColor getDefaultColorByState(const BitTorrent::TorrentState state)
     case BitTorrent::TorrentState::Downloading:
     case BitTorrent::TorrentState::ForcedDownloading:
     case BitTorrent::TorrentState::DownloadingMetadata:
+    case BitTorrent::TorrentState::ForcedDownloadingMetadata:
         if (!dark)
             return {34, 139, 34}; // Forest Green
         else
